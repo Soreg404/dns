@@ -1,7 +1,10 @@
 #pragma once
+#include <string>
+#include <Ws2tcpip.h>
 
 typedef unsigned short ushort;
 typedef unsigned int uint;
+typedef unsigned long ulong;
 typedef unsigned long long ullong;
 
 //Type field of Query and Answer
@@ -37,33 +40,31 @@ namespace dns {
 	};
 
 
-	struct Meta {
+	struct Type {
 		ushort qtype = 0;
 		ushort qclass = 1;
 	};
 
 	struct ResourceRecord {
-		Meta qtc;
+		Type qtc;
 		uint ttl = 0;
 		ushort dataLength = 0;
 	};
 
+
 	struct Query {
-		char *name = nullptr;
-		size_t len = 0;
-		Meta qtc;
-		~Query();
-		Query(const Query &c) = delete;
-		Query() = default;
+		std::string name;
+		Type qtc;
 	};
 
 	struct Answer {
-		char *name = nullptr;
-		ResourceRecord rr;
-		char *rdata = nullptr;
-		~Answer();
-		Answer(const Answer &c) = delete;
 		Answer() = default;
+		Answer(const char *name, ushort type = T_A, uint ttl = 0xff000000, void *rdata = nullptr, ushort dataLength = 4);
+		std::string name;
+		void *rdata = nullptr;
+		size_t rdataLen = 0;
+		ResourceRecord rr;
+		Answer *next = nullptr;
 	};
 
 	struct Message {
@@ -72,15 +73,24 @@ namespace dns {
 		Answer *an = nullptr;
 	};
 
-	void getMessage(dns::Message *msg, void *buffer, size_t maxBuffLen = 1000);
+	void getMessage(dns::Message *msg, void *buffer, size_t maxBuffSize = 1000);
 
-	size_t createResponse(dns::Message &msg, void *buffer, size_t maxBuffLen);
+	size_t createResponseBuffer(dns::Message &msg, void *buffer, size_t maxBuffSize);
+
+}
+
+namespace conf {
 
 	struct Entry {
 		const char *name = "";
-		ushort qtype = 0;
-		uint ipv4 = T_A;
+		ulong A = 0;
 	};
+
+	void loadEntryTable();
+	Entry *getEntry(unsigned long long index);
+	Entry *findEntry(const char *name);
 }
 
-
+namespace util {
+	const char *getDotName(char *buffer, size_t maxBuffSize, const char *netName);
+}
