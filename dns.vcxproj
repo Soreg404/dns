@@ -165,6 +165,7 @@
     <ClCompile Include="src\start.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="dependencies\Ini-file-parser\src\parseIni.h" />
     <ClInclude Include="src\incl.h" />
     <ClInclude Include="src\dns.h" />
   </ItemGroup>

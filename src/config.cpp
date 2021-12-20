@@ -1,6 +1,8 @@
 #include "dns.h"
 #include "incl.h"
 
+#include "Ini-file-parser/src/parseIni.h"
+
 conf::Entry *entryTable = nullptr;
 unsigned long long nEntr = 0;
 

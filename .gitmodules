@@ -1,0 +1,3 @@
+[submodule "dependencies/Ini-file-parser"]
+	path = dependencies/Ini-file-parser
+	url = https://github.com/Soreg404/Ini-file-parser.git
