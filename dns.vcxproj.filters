@@ -16,6 +16,9 @@
     <Filter Include="dependencies">
       <UniqueIdentifier>{9970374d-e03f-4b4d-90c3-28928c7ae8b9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="dependencies\IniParser">
+      <UniqueIdentifier>{9a7249bb-91de-49a5-be3e-a368b38b398c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -27,17 +30,17 @@
     <ClCompile Include="src\start.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="dependencies\Ini-file-parser\src\datatypes.cpp">
-      <Filter>dependencies</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\Ini-file-parser\src\parseIni.cpp">
-      <Filter>dependencies</Filter>
-    </ClCompile>
-    <ClCompile Include="dependencies\Ini-file-parser\src\presentation.cpp">
-      <Filter>dependencies</Filter>
-    </ClCompile>
     <ClCompile Include="src\dns.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\datatypes.cpp">
+      <Filter>dependencies\IniParser</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\parseIni.cpp">
+      <Filter>dependencies\IniParser</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\presentation.cpp">
+      <Filter>dependencies\IniParser</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -48,7 +51,10 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="dependencies\Ini-file-parser\src\parseIni.h">
-      <Filter>dependencies</Filter>
+      <Filter>dependencies\IniParser</Filter>
+    </ClInclude>
+    <ClInclude Include="dependencies\ini-file-parser\src\macros.h">
+      <Filter>dependencies\IniParser</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
