@@ -24,9 +24,10 @@ void *__CRTDECL operator new(size_t _Size) {
 }
 #pragma endregion
 
-#define BUFFER_SIZE 1000
-char strBuffer[BUFFER_SIZE];
-char msgBuffer[BUFFER_SIZE];
+namespace {
+	char strBuffer[MAX_BUFFER_SIZE] = { 0 };
+	char msgBuffer[MAX_BUFFER_SIZE] = { 0 };
+}
 
 int main(int argc, const char *argv[]) {
 
@@ -54,26 +55,27 @@ int main(int argc, const char *argv[]) {
 	while(1) {
 
 		// recv & parse msg
-		recvfrom(sockServ, msgBuffer, BUFFER_SIZE, 0, (SOCKADDR *)&si_other, &otherLen);
+		recvfrom(sockServ, msgBuffer, MAX_BUFFER_SIZE, 0, (SOCKADDR *)&si_other, &otherLen);
 
 		dns::Message req;
 		dns::getMessage(&req, msgBuffer);
 
-		LOG("request from %s; requesting %s",
-			inet_ntop(AF_INET, &si_other.sin_addr, strBuffer + 500, BUFFER_SIZE - 500),
-			util::getDotName(strBuffer, BUFFER_SIZE, req.q.name.c_str() + 1));
+		LOG("request from %s; requesting %s (%s)",
+			inet_ntop(AF_INET, &si_other.sin_addr, strBuffer + 500, MAX_BUFFER_SIZE - 500),
+			util::getDotName(strBuffer, MAX_BUFFER_SIZE, req.q.name.c_str() + 1),
+			util::getReqType(strBuffer, MAX_BUFFER_SIZE, ntohs(req.q.qtc.qtype)));
 
 
 		// respond if found entry
-
-		if(conf::Entry *foundEntry = conf::findEntry(req.q.name.c_str())) {
+		conf::Entry foundEntry;
+		if(conf::findEntry(&foundEntry, req.q.name.c_str())) {
 
 			{
 				in_addr ntop;
-				ntop.S_un.S_addr = foundEntry->A;
+				ntop.S_un.S_addr = foundEntry.A;
 				LOG("FOUND %s WITH ADDR %s",
-					util::getDotName(strBuffer, BUFFER_SIZE, foundEntry->name + 1),
-					inet_ntop(AF_INET, &ntop, strBuffer + 500, BUFFER_SIZE - 500));
+					util::getDotName(strBuffer, MAX_BUFFER_SIZE, req.q.name.c_str()),
+					inet_ntop(AF_INET, &ntop, strBuffer + 500, MAX_BUFFER_SIZE - 500));
 			}
 
 			//LOG("responding");
@@ -82,14 +84,18 @@ int main(int argc, const char *argv[]) {
 
 			resp.h = req.h;
 			resp.h.f.qr = 1;
-			resp.h.anCount = htons(1);
+			resp.h.anCount = htons(2);
 
 			resp.q = req.q;
 
-			resp.an = new dns::Answer(resp.q.name.c_str());
-			resp.an->rdata = reinterpret_cast<void *>(&foundEntry->A);
+			dns::Answer *before = resp.addAnswer("", T_CNAME, 0xff000000, "\x8""abgzawaw\x4yoru", 15)->extend(nullptr);
 
-			size_t retSize = dns::createResponseBuffer(resp, msgBuffer, BUFFER_SIZE);
+			before = resp.addAnswer("", T_A, 0xff000000, reinterpret_cast<const void *>(&foundEntry.A), 4)->extend(before);
+
+			/*resp.an = new dns::Answer(resp.q.name.c_str());
+			resp.an->rdata = reinterpret_cast<void *>(&foundEntry.A);*/
+
+			size_t retSize = dns::createResponseBuffer(resp, msgBuffer, MAX_BUFFER_SIZE);
 
 			//LOG("sending");
 

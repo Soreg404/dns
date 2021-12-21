@@ -160,7 +160,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="dependencies\Ini-file-parser\src\datatypes.cpp" />
+    <ClCompile Include="dependencies\Ini-file-parser\src\parseIni.cpp" />
+    <ClCompile Include="dependencies\Ini-file-parser\src\presentation.cpp" />
     <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\dns.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\start.cpp" />
   </ItemGroup>

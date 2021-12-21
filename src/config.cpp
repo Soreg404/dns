@@ -3,39 +3,52 @@
 
 #include "Ini-file-parser/src/parseIni.h"
 
-conf::Entry *entryTable = nullptr;
-unsigned long long nEntr = 0;
+ini::File entryTable;
+
+namespace {
+	char strBuffer[MAX_BUFFER_SIZE] = { 0 };
+}
+
+conf::Entry::~Entry() {
+	if(name) delete[]name;
+}
 
 void conf::loadEntryTable() {
 
-	// mock
-
-	nEntr = 5;
-	entryTable = new conf::Entry[nEntr];
-	
-	entryTable[0].name = "\6google\2pl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[0].A);
-
-	entryTable[1].name = "\4lolz\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[1].A);
-
-	entryTable[2].name = "\4helo\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[2].A);
-
-	entryTable[3].name = "\5helo2\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[3].A);
-
-	entryTable[4].name = "\4sike\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[4].A);
+	{
+		char *confPath = nullptr;
+		size_t buffCount = 0;
+		bool error = false;
+		int err = _dupenv_s(&confPath, &buffCount, "CONFIG");
+		if(!err) {
+			char iniPath[_MAX_PATH];
+			int written = snprintf(iniPath, _MAX_PATH, "%sdns.ini", confPath);
+			if(written < 0 || written >= _MAX_PATH || !entryTable.load(iniPath))
+				error = true;
+		} else error = true;
+		delete[]confPath;
+		if(error) {
+			LOG("[error] loadEntryTable");
+			while(!entryTable.isOK()) {
+				ini::ErrorInfo e = entryTable.getError();
+				LOG("[error] ini loader: (%u) %s", e.code, e.description);
+			}
+		}
+	}
 
 }
 
-conf::Entry *conf::getEntry(unsigned long long index) { return &entryTable[index]; }
+bool conf::getEntry(conf::Entry *entr, unsigned long long index) {
+	return false;
+}
 
-conf::Entry *conf::findEntry(const char *name) {
-	for(ullong i = 0; i < nEntr; i++)
-		if(!strcmp(entryTable[i].name, name)) return entryTable + i;
-	return nullptr;
+bool conf::findEntry(conf::Entry *entr, const char *name) {
+	ini::Section *domain = entryTable.section(util::getDotName(strBuffer, MAX_BUFFER_SIZE, name));
+	if(!domain) return false;
+
+	if(ini::Attrib *A = domain->get("A")) InetPtonA(AF_INET, A->value.c_str(), &entr->A);
+
+	return true;
 }
 
 

@@ -27,6 +27,18 @@
     <ClCompile Include="src\start.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\datatypes.cpp">
+      <Filter>dependencies</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\parseIni.cpp">
+      <Filter>dependencies</Filter>
+    </ClCompile>
+    <ClCompile Include="dependencies\Ini-file-parser\src\presentation.cpp">
+      <Filter>dependencies</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dns.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\dns.h">
