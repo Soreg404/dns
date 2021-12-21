@@ -24,16 +24,16 @@ void *__CRTDECL operator new(size_t _Size) {
 }
 #pragma endregion
 
-
-void loadEntryTable();
-dns::Entry *getEntry(unsigned long long index);
-uint findEntry(const char *name);
+namespace {
+	char strBuffer[MAX_BUFFER_SIZE] = { 0 };
+	char msgBuffer[MAX_BUFFER_SIZE] = { 0 };
+}
 
 int main(int argc, const char *argv[]) {
 
 	Mem e;
 
-	loadEntryTable();
+	conf::loadEntryTable();
 
 	WSAData wsaData;
 	if(WSAStartup(MAKEWORD(2, 2), &wsaData)) LOG("[error] WSA init");
@@ -42,61 +42,64 @@ int main(int argc, const char *argv[]) {
 	if(sockServ == INVALID_SOCKET) LOG("[error] socket init");
 
 	sockaddr_in servAddr;
-	//InetPton(AF_INET, L"127.0.0.1", &servAddr.sin_addr);
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_port = htons(53);
 
-	char reqName[1000];
 
 	if(bind(sockServ, reinterpret_cast<SOCKADDR *>(&servAddr), sizeof(servAddr)) == SOCKET_ERROR) LOG("[error] binding");
 
-	char buf[1000];
 	sockaddr_in si_other;
 	int otherLen = sizeof(si_other);
 
 	while(1) {
-		recvfrom(sockServ, buf, 1000, 0, (SOCKADDR *)&si_other, &otherLen);
+
+		// recv & parse msg
+		recvfrom(sockServ, msgBuffer, MAX_BUFFER_SIZE, 0, (SOCKADDR *)&si_other, &otherLen);
 
 		dns::Message req;
-		dns::getMessage(&req, buf);
+		dns::getMessage(&req, msgBuffer);
 
-		strcpy_s(reqName, 1000, req.q.name + 1);
-		for(int i = 0; i < 1000 && reqName[i] != 0; i++) if(reqName[i] < 32) reqName[i] = '.';
-		LOG("request from %u; requesting %s", ntohl(si_other.sin_addr.s_addr), reqName);
+		LOG("request from %s; requesting %s (%s)",
+			inet_ntop(AF_INET, &si_other.sin_addr, strBuffer + 500, MAX_BUFFER_SIZE - 500),
+			util::getDotName(strBuffer, MAX_BUFFER_SIZE, req.q.name.c_str() + 1),
+			util::getReqType(strBuffer, MAX_BUFFER_SIZE, ntohs(req.q.qtc.qtype)));
 
-		uint addr = findEntry(req.q.name);
-		if(addr) LOG("FOUND %s WITH ADDR %i", req.q.name, addr);
 
-		LOG("responding");
+		// respond if found entry
+		conf::Entry foundEntry;
+		if(conf::findEntry(&foundEntry, req.q.name.c_str())) {
 
-		dns::Message resp;
-		resp.h = req.h;
-		resp.h.f.qr = 1;
-		resp.h.anCount = htons(1);
+			{
+				in_addr ntop;
+				ntop.S_un.S_addr = foundEntry.A;
+				LOG("FOUND %s WITH ADDR %s",
+					util::getDotName(strBuffer, MAX_BUFFER_SIZE, req.q.name.c_str()),
+					inet_ntop(AF_INET, &ntop, strBuffer + 500, MAX_BUFFER_SIZE - 500));
+			}
 
-		resp.q.name = new char[strlen(req.q.name) + 1];
-		strcpy_s(resp.q.name, strlen(req.q.name) + 1, req.q.name);
+			//LOG("responding");
 
-		resp.q.qtc = req.q.qtc;
-		resp.q.len = req.q.len;
+			dns::Message resp;
 
-		resp.an = new dns::Answer;
-		resp.an->name = resp.q.name;
-		resp.an->rr.dataLength = htons(sizeof(int));
-		resp.an->rr.qtc = req.q.qtc;
-		resp.an->rr.ttl = 0xff000000; // (int)(htons(3600)) << 16;
+			resp.h = req.h;
+			resp.h.f.qr = 1;
+			resp.h.anCount = htons(2);
 
-		resp.an->rdata = (char *)new int;
-		*(reinterpret_cast<int *>(resp.an->rdata)) = addr;
+			resp.q = req.q;
 
-		size_t retSize = dns::createResponse(resp, buf, 1000);
+			dns::Answer *before = resp.addAnswer("", T_CNAME, 0xff000000, "\x8""abgzawaw\x4yoru", 15)->extend(nullptr);
 
-		LOG("sending");
+			before = resp.addAnswer("", T_A, 0xff000000, reinterpret_cast<const void *>(&foundEntry.A), 4)->extend(before);
 
-		if(sendto(sockServ, buf, retSize, 0, (struct sockaddr *)&si_other, retSize) == SOCKET_ERROR) {
-			printf("sendto() failed with error code : %d", WSAGetLastError());
-			exit(EXIT_FAILURE);
+			/*resp.an = new dns::Answer(resp.q.name.c_str());
+			resp.an->rdata = reinterpret_cast<void *>(&foundEntry.A);*/
+
+			size_t retSize = dns::createResponseBuffer(resp, msgBuffer, MAX_BUFFER_SIZE);
+
+			//LOG("sending");
+
+			if(sendto(sockServ, msgBuffer, static_cast<int>(retSize), 0, (struct sockaddr *)&si_other, sizeof(si_other)) == SOCKET_ERROR) LOG("[error] sending (%i)", WSAGetLastError());
 		}
 	}
 

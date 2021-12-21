@@ -1,39 +1,54 @@
 #include "dns.h"
 #include "incl.h"
 
-dns::Entry *entryTable = nullptr;
-unsigned long long nEntr = 0;
+#include "Ini-file-parser/src/parseIni.h"
 
-void loadEntryTable() {
+ini::File entryTable;
 
-	// mock
+namespace {
+	char strBuffer[MAX_BUFFER_SIZE] = { 0 };
+}
 
-	nEntr = 5;
-	entryTable = new dns::Entry[nEntr];
-	
-	entryTable[0].name = "\6google\2pl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[0].ipv4);
+conf::Entry::~Entry() {
+	if(name) delete[]name;
+}
 
-	entryTable[1].name = "\4lolz\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[1].ipv4);
+void conf::loadEntryTable() {
 
-	entryTable[2].name = "\4helo\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[2].ipv4);
-
-	entryTable[3].name = "\5helo2\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[3].ipv4);
-
-	entryTable[4].name = "\4sike\6blblbl";
-	InetPton(AF_INET, L"192.168.8.100", &entryTable[4].ipv4);
+	{
+		char *confPath = nullptr;
+		size_t buffCount = 0;
+		bool error = false;
+		int err = _dupenv_s(&confPath, &buffCount, "CONFIG");
+		if(!err) {
+			char iniPath[_MAX_PATH];
+			int written = snprintf(iniPath, _MAX_PATH, "%sdns.ini", confPath);
+			if(written < 0 || written >= _MAX_PATH || !entryTable.load(iniPath))
+				error = true;
+		} else error = true;
+		delete[]confPath;
+		if(error) {
+			LOG("[error] loadEntryTable");
+			while(!entryTable.isOK()) {
+				ini::ErrorInfo e = entryTable.getError();
+				LOG("[error] ini loader: (%u) %s", e.code, e.description);
+			}
+		}
+	}
 
 }
 
-dns::Entry *getEntry(unsigned long long index) { return &entryTable[index]; }
+bool conf::getEntry(conf::Entry *entr, unsigned long long index) {
+	return false;
+}
 
-uint findEntry(const char *name) {
-	for(ullong i = 0; i < nEntr; i++)
-		if(!strcmp(entryTable[i].name, name)) return entryTable[i].ipv4;
-	return 0;
+bool conf::findEntry(conf::Entry *entr, const char *name) {
+	ini::Section *domain = entryTable.section(util::getDotName(strBuffer, MAX_BUFFER_SIZE, name));
+	if(!domain) return false;
+
+	if(ini::Attrib *A = domain->get("A")) InetPtonA(AF_INET, A->value.c_str(), &entr->A);
+
+	return true;
 }
 
 

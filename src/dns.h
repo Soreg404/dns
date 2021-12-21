@@ -1,7 +1,10 @@
 #pragma once
+#include <string>
+#include <Ws2tcpip.h>
 
 typedef unsigned short ushort;
 typedef unsigned int uint;
+typedef unsigned long ulong;
 typedef unsigned long long ullong;
 
 //Type field of Query and Answer
@@ -11,6 +14,14 @@ typedef unsigned long long ullong;
 #define T_SOA 6 /* start of authority zone */
 #define T_PTR 12 /* domain name pointer */
 #define T_MX 15 /* mail routing information */
+
+#define DNS_SIZEOF_FLAGS 2
+#define DNS_SIZEOF_HEADER 12
+#define DNS_SIZEOF_TYPE 4
+#define DNS_SIZEOF_RR 10
+
+#define DNS_MAX_EXT_INDEX 0x3FFF
+#define DNS_EXT_FLAG 0xc000
 
 namespace dns {
 
@@ -37,50 +48,87 @@ namespace dns {
 	};
 
 
-	struct Meta {
-		ushort qtype = 0;
-		ushort qclass = 1;
+	struct Type {
+		ushort qtype = htons(T_A);
+		ushort qclass = htons(1);
 	};
 
 	struct ResourceRecord {
-		Meta qtc;
-		uint ttl = 0;
+		Type qtc;
+		uint ttl = 0xff000000;
 		ushort dataLength = 0;
 	};
 
+
 	struct Query {
-		char *name = nullptr;
-		size_t len = 0;
-		Meta qtc;
-		~Query();
-		Query(const Query &c) = delete;
-		Query() = default;
+		std::string name;
+		Type qtc;
+		ushort size() const;
 	};
 
 	struct Answer {
-		char *name = nullptr;
-		ResourceRecord rr;
-		char *rdata = nullptr;
-		~Answer();
-		Answer(const Answer &c) = delete;
+		friend struct Message;
 		Answer() = default;
+		Answer(const char *name, ushort type = T_A, uint ttl = 0xff000000, const void *rdata = nullptr, ushort dataLength = 0);
+		std::string name;
+		ResourceRecord rr;
+		Answer *setRData(const void *ptr, ushort length);
+
+		struct RData {
+			void *data = nullptr;
+			ushort len = 0;
+		};
+		const RData *getRData() const;
+
+		Answer *extend(Answer *e);
+		bool isExt() const;
+
+		ushort size() const;
+		ushort rdataIndex() const;
+
+		const Answer *getNext() const;
+
+	private:
+		Answer *extPtr = nullptr;
+		ushort startIndex = 0;
+		ushort extIndex = 0;
+		bool ext = false;
+
+		RData rd;
+
+		Answer *next = nullptr;
 	};
 
 	struct Message {
 		Header h;
 		Query q;
-		Answer *an = nullptr;
+		Answer *getFirstAn() const, *getLastAn() const;
+		Answer *addAnswer(), *addAnswer(const char *name, ushort type = T_A, uint ttl = 0xff000000, const void *rdata = nullptr, ushort dataLength = 0);
+		~Message();
+	private:
+		Answer *an = nullptr, *lastAn = nullptr, *newAn(Answer *);
 	};
 
-	void getMessage(dns::Message *msg, void *buffer, size_t maxBuffLen = 1000);
+	void getMessage(dns::Message *msg, void *buffer, size_t maxBuffSize = 1000);
 
-	size_t createResponse(dns::Message &msg, void *buffer, size_t maxBuffLen);
+	size_t createResponseBuffer(dns::Message &msg, void *buffer, size_t maxBuffSize);
 
-	struct Entry {
-		const char *name = "";
-		ushort qtype = 0;
-		uint ipv4 = T_A;
-	};
 }
 
+namespace conf {
 
+	struct Entry {
+		char *name = nullptr;
+		ulong A = 0;
+		~Entry();
+	};
+
+	void loadEntryTable();
+	bool getEntry(Entry *entr, unsigned long long index);
+	bool findEntry(Entry *entr, const char *name);
+}
+
+namespace util {
+	const char *getDotName(char *buffer, size_t maxBuffSize, const char *netName);
+	const char *getReqType(char *buffer, size_t maxBuffSize, ushort type);
+}
